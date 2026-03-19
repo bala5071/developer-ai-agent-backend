@@ -11,7 +11,7 @@ def create_tester_agent():
         goal="Ensure code quality through comprehensive testing and validation",
         backstory="You are a meticulous QA engineer who ensures code reliability through thorough testing and validation.",
         verbose=AGENT_VERBOSE,
-        llm="openai/gpt-5-mini",
+        llm="gemini/gemini-2.0-flash",
         tools=[
             run_tests, format_code, lint_code, generate_test_file,
             execute_code, validate_syntax, read_file, write_file,
