@@ -29,7 +29,6 @@ from datetime import datetime
 from typing import Optional
 
 from crewai import Crew, Process
-from flask import session
 
 # Import your existing agents
 from agents.manager import create_manager_agent
