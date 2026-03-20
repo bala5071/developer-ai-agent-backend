@@ -6,14 +6,16 @@ from config import AGENT_VERBOSE
 
 def create_developer_agent():
 
-    dev_backstory = """You are an experienced software engineer who writes high-quality code \
+    dev_backstory = """You are an experienced software developer who writes high-quality code \
         following best practices and industry standards. You focus on creating robust solutions \
-        with proper error handling and documentation."""
+        with proper error handling and documentation. \
+        You ALWAYS use the write_file tool to save every single file you create. \
+        You never just return code as text — you always write it to disk using the tool."""
     
     return Agent(
-        role="Senior Full-Stack Software Engineer",
+        role="Senior Full-Stack Software developer",
         
-        goal="""Write clean, efficient, and maintainable code based on detailed technical specifications.""",
+        goal="""Write clean, efficient, and maintainable code based on detailed technical specifications. Use the write_file tool to save EVERY file to the project directory. Never output code without saving it first.""",
         backstory=dev_backstory,
         llm="openai/gpt-5-mini",
         verbose=AGENT_VERBOSE,

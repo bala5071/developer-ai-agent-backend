@@ -45,6 +45,8 @@ from tasks.github_tasks import create_github_deployment_task, create_github_repo
 # Import your existing config
 from config import OUTPUT_DIR, GITHUB_USERNAME
 
+from tools.file_operations import set_current_session
+
 logger = logging.getLogger(__name__)
 
 # =============================================================================
@@ -202,6 +204,8 @@ def run_pipeline(session_id: str) -> None:
         developer      = create_developer_agent()
         tester         = create_tester_agent()
         github_manager = create_github_agent()
+
+        set_current_session(session_id)
 
         # =====================================================================
         # PHASE 0: GITHUB REPOSITORY CREATION

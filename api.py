@@ -15,6 +15,8 @@ import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from executor import run_code_in_sandbox
+from database import get_all_files
 
 from pipeline import (
     sessions,
@@ -281,4 +283,38 @@ async def list_sessions():
             for s in sessions.values()
         ],
         "total": len(sessions),
+    }
+
+@app.post("/project/{session_id}/execute")
+async def execute_code(session_id: str):
+    """
+    Runs the generated code in a sandbox and returns results.
+    Called when user clicks "Run & Test" in the UI.
+    """
+    session = sessions.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Get all files from Supabase
+    files = get_all_files(session_id)
+    if not files:
+        raise HTTPException(status_code=404, detail="No files found")
+
+    # Run in sandbox (this takes 10-30 seconds)
+    # We run it in a thread so it doesn't block the server
+    from fastapi.concurrency import run_in_threadpool
+    results = await run_in_threadpool(
+        run_code_in_sandbox,
+        files,
+        session.get("project_type", "python")
+    )
+
+    return {
+        "session_id": session_id,
+        "success":      results["success"],
+        "output":       results["output"],
+        "error":        results["error"],
+        "test_results": results["test_results"],
+        "summary":      results["summary"],
+        "files_run":    len(files),
     }
