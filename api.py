@@ -162,7 +162,7 @@ async def get_status(session_id: str):
         "outputs": session.get("outputs", {}),
         "files_generated": session.get("files_generated", []),
         "iteration": session.get("iteration", 0),
-
+        "execution_result": session.get("execution_result"),
         # Project metadata
         "repo_name": session["repo_name"],
         "github_url": session["github_url"],

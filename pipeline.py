@@ -29,6 +29,7 @@ from datetime import datetime
 from typing import Optional
 
 from crewai import Crew, Process
+from flask import session
 
 # Import your existing agents
 from agents.manager import create_manager_agent
@@ -46,6 +47,7 @@ from tasks.github_tasks import create_github_deployment_task, create_github_repo
 from config import OUTPUT_DIR, GITHUB_USERNAME
 
 from tools.file_operations import set_current_session
+from database import parse_and_save, write_to_temp_dir
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +114,7 @@ def create_session(project_description: str, project_type: str, project_name: st
             "improvement_plan": "",
         },
         "files_generated": [],                 # List of file paths created
+        "execution_result": None,
         "iteration": 0,                        # Current feedback iteration number
 
         # ── Threading primitives (NEVER sent to frontend) ────────────────────
@@ -302,6 +305,8 @@ def run_pipeline(session_id: str) -> None:
         )
         dev_result = _run_crew([developer], [development_task])
         session["outputs"]["code"] = str(dev_result)
+        files_saved = parse_and_save(session_id, str(dev_result))
+        session["files_generated"] = list(files_saved.keys())
 
         # =====================================================================
         # PHASE 3: TESTING
@@ -318,6 +323,7 @@ def run_pipeline(session_id: str) -> None:
         )
         test_result = _run_crew([tester], [testing_task])
         session["outputs"]["tests"] = str(test_result)
+        parse_and_save(session_id, str(test_result))
 
         # =====================================================================
         # PHASE 4: INITIAL GITHUB DEPLOYMENT
@@ -325,6 +331,9 @@ def run_pipeline(session_id: str) -> None:
         session["status"] = "deploying"
         session["phase_label"] = "Deploying to GitHub…"
         logger.info(f"[{session_id}] Phase 4: Initial GitHub deploy")
+
+        session["phase_label"] = "Restoring files for GitHub commit…"
+        write_to_temp_dir(session_id, project_dir)
 
         github_task = create_github_deployment_task(
             agent=github_manager,
@@ -335,6 +344,37 @@ def run_pipeline(session_id: str) -> None:
         )
         _run_crew([github_manager], [github_task])
         session["files_generated"] = _list_project_files(project_dir)
+
+        session["status"] = "executing"
+        session["phase_label"] = "Running your code in sandbox…"
+        try:
+            from backend.executor import run_code_in_sandbox
+            from backend.database import get_all_files
+
+            db_files = get_all_files(session_id)
+            if db_files:
+                execution = run_code_in_sandbox(db_files, project_type)
+            else:
+                # Fallback: read from disk if DB has nothing yet
+                disk_files = {}
+                for f in project_dir.rglob("*"):
+                    if f.is_file() and not f.suffix in {'.pyc', '.db'}:
+                        try:
+                            disk_files[str(f.relative_to(project_dir))] = f.read_text(encoding="utf-8")
+                        except Exception:
+                            pass
+                execution = run_code_in_sandbox(disk_files, project_type)
+
+            session["execution_result"] = execution
+            session["phase_label"] = "Code tested — waiting for your review…"
+        except Exception as e:
+            logger.warning(f"[{session_id}] E2B execution failed: {e}")
+            session["execution_result"] = None
+            session["phase_label"] = "Waiting for your review…"
+        # ← END BLOCK
+
+        # Now pause for user review (they can see execution results)
+        session["status"] = "waiting_review"
 
         # =====================================================================
         # PHASE 5: ITERATIVE FEEDBACK LOOP
@@ -445,6 +485,8 @@ def run_pipeline(session_id: str) -> None:
             )
             dev_result = _run_crew([developer], [development_task])
             session["outputs"]["code"] = str(dev_result)
+            files_saved = parse_and_save(session_id, str(dev_result))
+            session["files_generated"] = list(files_saved.keys())
 
             # ── STEP 3: Tester validates ──────────────────────────────────────
             session["status"] = "validating"
@@ -459,11 +501,14 @@ def run_pipeline(session_id: str) -> None:
             )
             test_result = _run_crew([tester], [testing_task])
             session["outputs"]["tests"] = str(test_result)
+            parse_and_save(session_id, str(test_result))
 
             # ── STEP 4: GitHub deploys ────────────────────────────────────────
             session["status"] = "deploying_changes"
             session["phase_label"] = "Deploying updates to GitHub…"
             logger.info(f"[{session_id}] Deploying changes to GitHub")
+
+            write_to_temp_dir(session_id, project_dir)
 
             github_task = create_github_deployment_task(
                 agent=github_manager,

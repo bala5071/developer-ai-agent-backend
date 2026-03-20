@@ -151,7 +151,7 @@ def write_file(file_path: str, content: str, mode: str = 'w', encoding: str = 'u
                 # so it's portable when restored to a different machine.
                 # Falls back to the full path if we can't make it relative.
                 try:
-                    from backend.config import OUTPUT_DIR
+                    from config import OUTPUT_DIR
                     relative_path = str(path.relative_to(OUTPUT_DIR))
                 except Exception:
                     relative_path = str(path)

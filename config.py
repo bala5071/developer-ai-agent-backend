@@ -20,7 +20,7 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 GITHUB_USERNAME = os.getenv("GITHUB_USERNAME", "")
 
 # Project Paths
-BASE_DIR = Path(r"C:\Users\balas\Documents\Projects")
+BASE_DIR = Path(os.getenv("OUTPUT_DIR", "/tmp/devron_projects"))
 OUTPUT_DIR = BASE_DIR
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
