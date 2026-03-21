@@ -347,8 +347,8 @@ def run_pipeline(session_id: str) -> None:
         session["status"] = "executing"
         session["phase_label"] = "Running your code in sandbox…"
         try:
-            from backend.executor import run_code_in_sandbox
-            from backend.database import get_all_files
+            from executor import run_code_in_sandbox
+            from database import get_all_files
 
             db_files = get_all_files(session_id)
             if db_files:
