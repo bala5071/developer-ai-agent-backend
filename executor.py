@@ -29,7 +29,7 @@ def run_code_in_sandbox(files: dict[str, str], project_type: str) -> dict:
     }
     """
     try:
-        with Sandbox(api_key=os.getenv("E2B_API_KEY"), timeout=60) as sandbox:
+        with Sandbox(timeout=60) as sandbox:
 
             # Write all generated files into the sandbox filesystem
             for file_path, content in files.items():
